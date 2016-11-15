@@ -44,6 +44,9 @@ if (typeof(argv.csv) == 'undefined' || typeof(argv.deflang) == 'undefined'  || t
 
 }
 function parseContentForAndroidCompliancy(str) {
+	if(str == null || str.length == 0){
+		return str;
+	}
 	return str.replace(/'/g,'\\\'').replace(/\\\\'/g, '\\\'');
 }
 function saveTranslations(translationData) {
@@ -54,23 +57,32 @@ function saveTranslations(translationData) {
 		var languageKey = columns[languageIdx];
 		var doc = "<resources>\n";
 		var stringArrays = {};
+		var plurals = {};
 		for (var row=0; row<translationData.length; row++) {
 			var item = translationData[row];
-			if (item.type == 'string-array') {
-				if ( typeof(stringArrays[item.Key]) == 'undefined') {
-					stringArrays[item.Key] = [];
-				}
-				stringArrays[item.Key].push(parseContentForAndroidCompliancy(item[languageKey]));
+			if (typeof(item[languageKey]) == 'undefined' || item[languageKey] == null ) {
+				console.log("Skipped "+item.Key+" Language: "+languageKey);
 			} else {
-				if (typeof(item[languageKey]) == 'undefined' || item[languageKey] == null ) {
-					console.log("Skipped "+item.Key+" Language: "+languageKey);
+				if (item.Type == 'plurals') {
+					var key = item.Key;
+					var keyname = key.split("/")[0];
+					var quantity = key.split("/")[1];
+					if (typeof(plurals[keyname]) == 'undefined') {
+						plurals[keyname] = [];
+					}
+					plurals[keyname].push({"quantity": quantity, "item": parseContentForAndroidCompliancy(item[languageKey])});
+				} else if (item.Type == 'string-array') {
+					if (typeof(stringArrays[item.Key]) == 'undefined') {
+						stringArrays[item.Key] = [];
+					}
+					stringArrays[item.Key].push(parseContentForAndroidCompliancy(item[languageKey]));
 				} else {
 					var extraAttributes = '';
 					if (parseContentForAndroidCompliancy(item[languageKey]).indexOf('%s') != -1) {
 						extraAttributes = ' formatted="false" ';
 					}
 
-					doc+="\t<string name=\""+item.Key+"\""+extraAttributes+">"+parseContentForAndroidCompliancy(item[languageKey])+"</string>\n";
+					doc += "\t<string name=\"" + item.Key + "\"" + extraAttributes + ">" + parseContentForAndroidCompliancy(item[languageKey]) + "</string>\n";
 				}
 			}
 		}
@@ -83,6 +95,14 @@ function saveTranslations(translationData) {
 			}
 			doc +="\t</string-array>\n";
 		}
+    // Adding plurals
+    for (key in plurals) {
+      doc +="\t<plurals name=\""+key+"\">\n";
+      for (item in plurals[key]) {
+        doc +="\t\t<item quantity=\""+plurals[key][item].quantity+"\">"+plurals[key][item].item+"</item>\n";
+      }
+      doc +="\t</plurals>\n";
+    }
 
 		doc+='</resources>';
 		writeXml(languageKey, doc);

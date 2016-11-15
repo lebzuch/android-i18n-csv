@@ -43,40 +43,64 @@ parser.on('end', function(result) {
 	}
 	tmpArrayForCsv.push(headLine);
 	for (k in result) {
+    var results = Array.isArray(result[k]) ? result[k] : [result[k]];
 		if (k == 'string') {
-			for (entry in result[k]) {
-				if (result[k][entry]['#'].substr(0,8) == '@string/') {
-					//console.log('skipped'+result[k][entry]['@'].name);
-				} else {
-					//eyes.inspect(result[k][entry]);
-					var toAdd = [k, result[k][entry]['@'].name, result[k][entry]['#']];
-					for (wl in config.wantedLangs) {
-						toAdd.push('');
-					}
-					
-					tmpArrayForCsv.push(toAdd);
-				}
-			}
+			parseString(results, k, tmpArrayForCsv);
 		} else if (k=='string-array') {
-			for (item in result[k].item) {
-				var toAdd = [k, result[k]['@'].name, result[k].item[item]];
-				for (wl in config.wantedLangs) {
-					toAdd.push('');
-				}
-				tmpArrayForCsv.push(toAdd);
-			}
-		} else {
+      parseStringArray(results, k, tmpArrayForCsv);
+    } else if (k=='plurals') {
+      parsePlurals(results, k, tmpArrayForCsv);
+    } else {
 			eyes.inspect(k);
 			eyes.inspect(result[k]);
 		}
 	}
-	
+
 	//eyes.inspect(tmpArrayForCsv);
-	
+
 	writeToCsv(tmpArrayForCsv);
-	
+
 });
 
+function parseString(result, k, arrayForCsv){
+  for (entry in result) {
+    if (result[entry]['#'].substr(0,8) == '@string/') {
+      //console.log('skipped'+result[k][entry]['@'].name);
+    } else {
+      //eyes.inspect(result[k][entry]);
+      var toAdd = [k, result[entry]['@'].name, result[entry]['#']];
+      for (wl in config.wantedLangs) {
+        toAdd.push('');
+      }
+
+      arrayForCsv.push(toAdd);
+    }
+  }
+}
+
+function parseStringArray(result, k, arrayForCsv){
+  for (entry in result) {
+    for (item in result[entry].item) {
+      var toAdd = [k, result[entry]['@'].name, result[entry].item[item]];
+      for (wl in config.wantedLangs) {
+        toAdd.push('');
+      }
+      arrayForCsv.push(toAdd);
+    }
+  }
+}
+
+function parsePlurals(result, k, arrayForCsv){
+  for (entry in result) {
+    for (item in result[entry].item) {
+      var toAdd = [k, result[entry]['@'].name + "/" +result[entry].item[item]["@"].quantity, result[entry].item[item]["#"]];
+      for (wl in config.wantedLangs) {
+        toAdd.push('');
+      }
+      arrayForCsv.push(toAdd);
+    }
+  }
+}
 
 function writeToCsv(csvArr) {
 	var stringForFile = "";
